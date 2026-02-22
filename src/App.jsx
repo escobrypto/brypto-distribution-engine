@@ -734,9 +734,11 @@ function CaptureEmbed({ call, fields }) {
   const M = "'JetBrains Mono', 'SF Mono', Consolas, monospace";
 
   return (
-    <div style={{ background: bg, padding: "16px 18px", fontFamily: F, width: 520, color: bright }}>
-      {/* Accent bar + header */}
-      <div style={{ borderLeft: `4px solid ${accent}`, paddingLeft: 14 }}>
+    <div style={{ background: "#2b2d31", borderRadius: 8, fontFamily: F, width: 800, color: bright, overflow: "hidden" }}>
+      {/* Top accent bar */}
+      <div style={{ height: 5, background: accent, width: "100%" }} />
+
+      <div style={{ padding: "18px 22px" }}>
 
         {/* Author */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -750,7 +752,7 @@ function CaptureEmbed({ call, fields }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ color: accent, fontSize: 14, fontWeight: 800 }}>{isLong ? "▲" : "▼"}</span>
-            <span style={{ fontSize: 18, fontWeight: 800, color: bright }}>{call.pair || "BTC/USDT"}</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: bright }}>{call.pair || "BTC/USDT"}</span>
             <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: isLong ? "rgba(0,223,163,.12)" : "rgba(255,56,104,.12)", color: accent }}>{call.direction}</span>
             {call.orderType === "limit" && (
               <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 5px", borderRadius: 3, background: "rgba(255,255,255,.05)", color: fieldColor }}>LIMIT</span>
@@ -772,21 +774,21 @@ function CaptureEmbed({ call, fields }) {
           display: "flex", marginBottom: 12, borderRadius: 5, overflow: "hidden", border: `1px solid ${borderC}`,
         }}>
           <div style={{ flex: 1, padding: "9px 12px", background: cellBg }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>
               ENTRY{dcaList.length > 0 && call.entryPct ? ` (${call.entryPct}%)` : ""}
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: bright, fontFamily: M }}>{call.entry ? formatPrice(call.entry) : "—"}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: bright, fontFamily: M }}>{call.entry ? formatPrice(call.entry) : "—"}</div>
           </div>
           {wAvg && (
             <div style={{ flex: 1, padding: "9px 12px", background: cellBg, borderLeft: `1px solid ${borderC}` }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>AVG ENTRY</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#a99bf5", fontFamily: M }}>{formatPrice(wAvg)}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>AVG ENTRY</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#a99bf5", fontFamily: M }}>{formatPrice(wAvg)}</div>
             </div>
           )}
           <div style={{ flex: 1, padding: "9px 12px", background: "rgba(255,56,104,.03)", borderLeft: `1px solid ${borderC}` }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>STOP LOSS</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>STOP LOSS</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: "#ff3868", fontFamily: M }}>{call.sl ? formatPrice(call.sl) : "—"}</span>
+              <span style={{ fontSize: 22, fontWeight: 700, color: "#ff3868", fontFamily: M }}>{call.sl ? formatPrice(call.sl) : "—"}</span>
               {slPct && <span style={{ fontSize: 11, color: "#ff3868", opacity: 0.6, fontWeight: 600 }}>-{slPct}%</span>}
             </div>
           </div>
@@ -816,12 +818,12 @@ function CaptureEmbed({ call, fields }) {
         {/* DCA Allocation */}
         {fields.dca && dcaList.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 6 }}>POSITION ALLOCATION</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 6 }}>POSITION ALLOCATION</div>
             {call.entry && call.entryPct && (
               <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 10px", borderRadius: 4, background: "rgba(0,223,163,.04)", marginBottom: 3, borderLeft: "3px solid rgba(0,223,163,.3)" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#00dfa3" }}>E</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(call.entry)}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(call.entry)}</span>
                   <span style={{ fontSize: 11, color: fieldColor, fontStyle: "italic" }}>entry</span>
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "#00dfa3" }}>{call.entryPct}%</span>
@@ -831,7 +833,7 @@ function CaptureEmbed({ call, fields }) {
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,.02)", marginBottom: 3 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: fieldColor }}>{i + 1}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(d.price)}</span>
+                  <span style={{ fontSize: 16, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(d.price)}</span>
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "#1cb8e0" }}>{d.pct}%</span>
               </div>
@@ -854,7 +856,7 @@ function CaptureEmbed({ call, fields }) {
         {/* Targets */}
         {targets.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 6 }}>TARGETS</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 6 }}>TARGETS</div>
             {targets.map((t, i) => {
               const r = calcRR(effectiveEntry, call.sl, t.price);
               const tp = pctDiff(effectiveEntry, t.price);
@@ -871,12 +873,12 @@ function CaptureEmbed({ call, fields }) {
                     <span style={{ fontSize: 11, fontWeight: 700, color: isHit ? "#00dfa3" : isLast ? accent : fieldColor, width: 13 }}>
                       {isHit ? "✓" : isLast && targets.length > 1 ? "★" : i + 1}
                     </span>
-                    <span style={{ fontSize: 15, fontWeight: 600, fontFamily: M, color: isHit ? "#00dfa3" : isLast ? accent : "#e0e2e8" }}>{formatPrice(t.price)}</span>
+                    <span style={{ fontSize: 17, fontWeight: 600, fontFamily: M, color: isHit ? "#00dfa3" : isLast ? accent : "#e0e2e8" }}>{formatPrice(t.price)}</span>
                     {tp && <span style={{ fontSize: 11, color: isLong ? "#00dfa3" : "#e0e2e8", opacity: 0.45 }}>+{tp}%</span>}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     {t.trim && <span style={{ fontSize: 11, fontWeight: 600, color: fieldColor }}>{t.trim}%</span>}
-                    {r && <span style={{ fontSize: 13, fontWeight: 700, fontFamily: M, color: parseFloat(r) >= 3 ? "#00dfa3" : parseFloat(r) >= 2 ? "#f0b030" : fieldColor }}>{r}R</span>}
+                    {r && <span style={{ fontSize: 15, fontWeight: 700, fontFamily: M, color: parseFloat(r) >= 3 ? "#00dfa3" : parseFloat(r) >= 2 ? "#f0b030" : fieldColor }}>{r}R</span>}
                   </div>
                 </div>
               );
@@ -912,7 +914,7 @@ function CaptureEmbed({ call, fields }) {
         {/* Updates */}
         {updates.length > 0 && (
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 5 }}>UPDATES</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 5 }}>UPDATES</div>
             {updates.map((u, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,.02)", borderLeft: `3px solid ${u.color || "#3b82f6"}30`, marginBottom: 3 }}>
                 <span style={{ fontSize: 11 }}>{u.icon}</span>
@@ -1067,7 +1069,7 @@ export default function BryptoCallEngine() {
     node.style.position = "fixed";
     node.style.left = "-9999px";
     node.style.top = "0";
-    node.style.width = "520px";
+    node.style.width = "800px";
     node.style.display = "block";
     node.style.zIndex = "-1";
 
@@ -1080,7 +1082,7 @@ export default function BryptoCallEngine() {
       useCORS: true,
       allowTaint: true,
       logging: false,
-      width: 520,
+      width: 800,
     });
 
     node.style.display = "none";
