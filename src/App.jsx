@@ -877,90 +877,107 @@ export default function BryptoCallEngine() {
     const effectiveEntry = wAvg || parseFloat(callData.entry);
     const slPctVal = effectiveEntry ? pctDiff(effectiveEntry, callData.sl) : null;
     const maxRRVal = targets.length > 0 && effectiveEntry ? calcRR(effectiveEntry, callData.sl, targets[targets.length - 1].price) : null;
-    const st = STATUSES[callData.status] || STATUSES.pending;
 
-    // Build entry/SL header
-    let entryLabel = dcaList.length > 0 && callData.entryPct ? `ENTRY (${callData.entryPct}%)` : "ENTRY";
-    let entryLine = `\`${callData.entry ? formatPrice(callData.entry) : "—"}\``;
-    if (wAvg) entryLine += `  ·  **AVG** \`${formatPrice(wAvg)}\``;
-    let slLine = `\`${callData.sl ? formatPrice(callData.sl) : "—"}\``;
-    if (slPctVal) slLine += ` \`-${slPctVal}%\``;
+    const embedFields = [];
 
-    const fields = [];
+    // ── ENTRY / AVG / SL as inline fields (mimics the grid) ──
+    let entryName = dcaList.length > 0 && callData.entryPct ? `ENTRY (${callData.entryPct}%)` : "ENTRY";
+    embedFields.push({ name: entryName, value: `**\`${callData.entry ? formatPrice(callData.entry) : "—"}\`**`, inline: true });
 
-    fields.push({ name: `📍 ${entryLabel}`, value: entryLine, inline: true });
-    fields.push({ name: "🛑 STOP LOSS", value: slLine, inline: true });
+    if (wAvg) {
+      embedFields.push({ name: "AVG ENTRY", value: `**\`${formatPrice(wAvg)}\`**`, inline: true });
+    }
 
-    // Badges line
+    let slVal = `**\`${callData.sl ? formatPrice(callData.sl) : "—"}\`**`;
+    if (slPctVal) slVal += ` \`-${slPctVal}%\``;
+    embedFields.push({ name: "STOP LOSS", value: slVal, inline: true });
+
+    // ── Badges ──
     let badges = [];
     if (callData.definedRisk) badges.push(`🎯 Risk: ${callData.definedRisk}${callData.riskUnit === "pct" ? "%" : "R"}`);
     if (flds.leverage && callData.leverage) badges.push(`⚡ ${callData.leverage}x`);
     if (dcaList.length > 0) badges.push(`DCA: ${dcaList.length} level${dcaList.length > 1 ? "s" : ""}`);
-    if (badges.length) fields.push({ name: "\u200b", value: badges.join("  ·  "), inline: false });
+    if (badges.length) embedFields.push({ name: "\u200b", value: badges.join("  ·  "), inline: false });
 
-    // DCA allocation detail
+    // ── Position Allocation ──
     if (flds.dca && dcaList.length > 0) {
-      let dcaText = "";
+      let dcaLines = [];
       if (callData.entry && callData.entryPct) {
-        dcaText += `**E**  \`${formatPrice(callData.entry)}\`  *entry*  —  **${callData.entryPct}%**\n`;
+        dcaLines.push(`\`E\`  \`${formatPrice(callData.entry)}\`  entry ─── **${callData.entryPct}%**`);
       }
       dcaList.forEach((d, i) => {
-        dcaText += `**${i + 1}**  \`${formatPrice(d.price)}\`  —  **${d.pct}%**\n`;
+        dcaLines.push(`\`${i + 1}\`  \`${formatPrice(d.price)}\` ─────── **${d.pct}%**`);
       });
-      // Partial fill note
       const entryOnly = parseFloat(callData.entryPct) || 0;
       if (entryOnly < 99.5 && dcaList.length > 0) {
         const entryOnlyR = calcRR(callData.entry, callData.sl, targets.length > 0 ? targets[targets.length - 1].price : 0);
-        dcaText += `💡 *Entry only (${entryOnly}%): R = ${entryOnlyR || "—"} · Full fill: R = ${maxRRVal || "—"}*`;
+        dcaLines.push(`💡 *Entry only (${entryOnly}%): R = ${entryOnlyR || "—"} · Full fill: R = ${maxRRVal || "—"}*`);
       }
-      fields.push({ name: "POSITION ALLOCATION", value: dcaText.trim(), inline: false });
+      embedFields.push({ name: "POSITION ALLOCATION", value: dcaLines.join("\n"), inline: false });
     }
 
-    // Targets
+    // ── Targets ──
     if (targets.length > 0) {
-      let tgtText = targets.map((t, i) => {
+      let tgtLines = targets.map((t, i) => {
         const r = calcRR(effectiveEntry, callData.sl, t.price);
         const tp = pctDiff(effectiveEntry, t.price);
         const isLast = i === targets.length - 1 && targets.length > 1;
         const prefix = isLast ? "★" : `${i + 1}`;
-        let line = `**${prefix}**  \`${formatPrice(t.price)}\``;
+        let line = `\`${prefix}\`  **\`${formatPrice(t.price)}\`**`;
         if (tp) line += `  *+${tp}%*`;
-        if (t.trim) line += `  ·  ${t.trim}%`;
-        if (r) line += `  —  **${r}R**`;
+        let right = [];
+        if (t.trim) right.push(`${t.trim}%`);
+        if (r) right.push(`**${r}R**`);
+        if (right.length) line += `  ─  ${right.join("  ")}`;
         return line;
-      }).join("\n");
-      fields.push({ name: "🎯 TARGETS", value: tgtText, inline: false });
+      });
+      embedFields.push({ name: "TARGETS", value: tgtLines.join("\n"), inline: false });
     }
 
-    // Chart link
-    if (callData.chartTv) {
-      fields.push({ name: "\u200b", value: `📊 [View Chart on TradingView ↗](${callData.chartTv})`, inline: false });
-    }
-
-    // Notes
+    // ── Notes (before chart) ──
     if (callData.notes) {
-      fields.push({ name: "\u200b", value: `> *${callData.notes}*`, inline: false });
+      embedFields.push({ name: "\u200b", value: `> *${callData.notes}*`, inline: false });
     }
 
-    // Build the embed object
+    // ── Chart link ──
+    if (callData.chartTv) {
+      embedFields.push({ name: "\u200b", value: `📊 [View Chart on TradingView ↗](${callData.chartTv})`, inline: false });
+    }
+
+    // ── Title line ──
+    let titleParts = [`${arrow} **${callData.pair || "BTC/USDT"}**`];
+    titleParts.push(`\`${dir}\``);
+    if (callData.orderType === "limit") titleParts.push("`LIMIT`");
+    const title = titleParts.join("  ");
+
+    // ── Meta line ──
+    let metaParts = [callData.analyst || "esco"];
+    metaParts.push(new Date().toLocaleDateString("en", { month: "short", day: "numeric" }));
+    if (flds.timeframe && callData.timeframe) metaParts.push(callData.timeframe);
+    if (flds.tags && callData.tag) metaParts.push(callData.tag);
+    metaParts.push(`\`${callData.tradeId || ""}\``);
+
     const embed = {
       color: color,
       author: { name: "Brypto Call Engine" },
-      title: `${arrow} ${callData.pair || "BTC/USDT"}  ·  **${dir}**${callData.orderType === "limit" ? "  ·  LIMIT" : ""}`,
-      description: `${callData.analyst || "esco"} · ${new Date().toLocaleDateString("en", { month: "short", day: "numeric" })}${flds.timeframe && callData.timeframe ? ` · ${callData.timeframe}` : ""}${flds.tags && callData.tag ? ` · ${callData.tag}` : ""} · \`${callData.tradeId || ""}\`  —  ${st.icon} **${st.label}**`,
-      fields: fields,
+      title: title,
+      description: metaParts.join(" · "),
+      fields: embedFields,
       footer: { text: `Brypto${maxRRVal ? `  ·  Max ${maxRRVal}R` : ""}` },
       timestamp: new Date().toISOString(),
     };
 
-    // Chart image — try chartImg first, fall back to converting chartTv
+    // ── Chart image ──
     const imgSource = callData.chartImg || callData.chartTv;
     if (imgSource) {
       const directUrl = tvToDirectImage(imgSource);
-      if (directUrl && (directUrl.includes("s3.tradingview.com") || directUrl.match(/\.(png|jpg|jpeg|gif|webp)/i))) {
+      if (directUrl) {
         embed.image = { url: directUrl };
       }
     }
+
+    return embed;
+  }
 
     return embed;
   }
