@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // ══════════════════════════════════════════════════════════════
 // BRYPTO CALL ENGINE v4 — Phase 1 (Clean Build)
@@ -801,6 +801,34 @@ export default function BryptoCallEngine() {
   const [showAddWH, setShowAddWH] = useState(false);
   const [newWH, setNewWH] = useState({ name: "", url: "", skin: "basic" });
 
+  const embedRef = useRef(null);
+
+  // Dynamically load html2canvas and capture the premium embed as a blob
+  const captureEmbedAsBlob = useCallback(async () => {
+    // Dynamically import html2canvas
+    if (!window.html2canvas) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    const node = embedRef.current;
+    if (!node) return null;
+
+    const canvas = await window.html2canvas(node, {
+      backgroundColor: "#313338",
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+    });
+
+    return new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  }, []);
+
   // Updaters
   const updateCall = (key, value) => setCall(prev => ({ ...prev, [key]: value }));
   const updateTarget = (index, key, value) => {
@@ -979,16 +1007,40 @@ export default function BryptoCallEngine() {
     return embed;
   }
 
-  const sendToWebhook = async (url, embed) => {
+  const sendToWebhook = async (url, imageBlob, callData, flds) => {
     try {
-      const body = JSON.stringify({ username: "Brypto", embeds: [embed] });
-      console.log("Sending to:", url.slice(0, 60) + "...");
-      console.log("Payload:", body.slice(0, 200) + "...");
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: body,
-      });
+      const formData = new FormData();
+
+      // Build a minimal embed for context (the image IS the embed visually)
+      const isL = callData.direction === "LONG";
+      const targets = (callData.targets || []).filter(t => t.price);
+      const dcaList = (callData.dcas || []).filter(d => d.price);
+      const wAvg = dcaList.length > 0 ? weightedAvgEntry(callData.entry, callData.entryPct, dcaList) : null;
+      const effectiveEntry = wAvg || parseFloat(callData.entry);
+      const maxRRVal = targets.length > 0 && effectiveEntry ? calcRR(effectiveEntry, callData.sl, targets[targets.length - 1].price) : null;
+
+      const payload = {
+        username: "Brypto",
+        embeds: [{
+          color: isL ? 0x00DFA3 : 0xFF3868,
+          image: { url: "attachment://brypto-call.png" },
+          footer: { text: `Brypto  ·  ${callData.pair || "BTC/USDT"}  ·  ${callData.direction}${maxRRVal ? `  ·  Max ${maxRRVal}R` : ""}` },
+          timestamp: new Date().toISOString(),
+        }],
+      };
+
+      // Add TradingView link as a field if present
+      if (callData.chartTv) {
+        payload.embeds[0].fields = [
+          { name: "\u200b", value: `📊 [View Chart on TradingView ↗](${callData.chartTv})`, inline: false }
+        ];
+      }
+
+      formData.append("payload_json", JSON.stringify(payload));
+      formData.append("files[0]", imageBlob, "brypto-call.png");
+
+      console.log("Sending image to:", url.slice(0, 60) + "...");
+      const res = await fetch(url, { method: "POST", body: formData });
       console.log("Response status:", res.status);
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
@@ -1004,23 +1056,36 @@ export default function BryptoCallEngine() {
   const handleSend = async () => {
     if (!canSend) return;
     setSent(true);
-    flash(`Sending to ${activeWH} servers...`);
+    flash(`Capturing embed...`);
 
-    const embed = buildDiscordEmbed(call, fields);
-    const activeWebhooks = webhooks.filter(w => w.on && w.url && !w.url.includes("..."));
-    const results = await Promise.all(activeWebhooks.map(w => sendToWebhook(w.url, embed)));
-    const successCount = results.filter(Boolean).length;
-    const failCount = results.length - successCount;
+    try {
+      // Capture the premium embed as an image
+      const imageBlob = await captureEmbedAsBlob();
+      if (!imageBlob) {
+        flash("⚠ Failed to capture embed image", "warn");
+        setSent(false);
+        return;
+      }
 
-    setHistory(prev => [{ id: Date.now(), ...call, ts: Date.now(), dist: successCount }, ...prev]);
-    updateCall("status", "active");
+      flash(`Sending to ${activeWH} servers...`);
+      const activeWebhooks = webhooks.filter(w => w.on && w.url && !w.url.includes("..."));
+      const results = await Promise.all(activeWebhooks.map(w => sendToWebhook(w.url, imageBlob, call, fields)));
+      const successCount = results.filter(Boolean).length;
+      const failCount = results.length - successCount;
 
-    if (failCount > 0) {
-      flash(`✓ Sent to ${successCount}/${results.length} · ${failCount} failed`, "warn");
-    } else if (successCount > 0) {
-      flash(`✓ Distributed to ${successCount} server${successCount !== 1 ? "s" : ""}`);
-    } else {
-      flash("⚠ No valid webhook URLs configured", "warn");
+      setHistory(prev => [{ id: Date.now(), ...call, ts: Date.now(), dist: successCount }, ...prev]);
+      updateCall("status", "active");
+
+      if (failCount > 0) {
+        flash(`✓ Sent to ${successCount}/${results.length} · ${failCount} failed`, "warn");
+      } else if (successCount > 0) {
+        flash(`✓ Distributed to ${successCount} server${successCount !== 1 ? "s" : ""}`);
+      } else {
+        flash("⚠ No valid webhook URLs configured", "warn");
+      }
+    } catch (err) {
+      console.error("Send error:", err);
+      flash("⚠ Send failed — check console", "warn");
     }
     setTimeout(() => setSent(false), 1100);
   };
@@ -1542,7 +1607,9 @@ export default function BryptoCallEngine() {
                 </div>
               </div>
 
-              {previewSkin === "premium" ? <PremiumEmbed call={call} fields={fields} /> : <BasicEmbed call={call} />}
+              <div ref={embedRef}>
+                {previewSkin === "premium" ? <PremiumEmbed call={call} fields={fields} /> : <BasicEmbed call={call} />}
+              </div>
 
               {canSend && (
                 <div style={{ marginTop: 12 }}>
@@ -1624,20 +1691,30 @@ export default function BryptoCallEngine() {
                   <ActionButton small outline color={COLORS.brand} onClick={async () => {
                     if (!w.url || w.url.includes("...")) { flash("⚠ No valid URL", "warn"); return; }
                     flash(`Testing → ${w.name}...`);
-                    const testEmbed = {
-                      color: 0x1CB8E0,
-                      author: { name: "Brypto Call Engine" },
-                      title: "🔗 Webhook Test",
-                      description: `Connection to **${w.name}** is working.`,
-                      fields: [
-                        { name: "Status", value: "✅ Connected", inline: true },
-                        { name: "Skin", value: w.skin, inline: true },
-                      ],
-                      footer: { text: "Brypto · Test Ping" },
-                      timestamp: new Date().toISOString(),
-                    };
-                    const ok = await sendToWebhook(w.url, testEmbed);
-                    flash(ok ? `✓ ${w.name} connected!` : `✕ ${w.name} failed`, ok ? "ok" : "warn");
+                    try {
+                      const res = await fetch(w.url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          username: "Brypto",
+                          embeds: [{
+                            color: 0x1CB8E0,
+                            author: { name: "Brypto Call Engine" },
+                            title: "🔗 Webhook Test",
+                            description: `Connection to **${w.name}** is working.`,
+                            fields: [
+                              { name: "Status", value: "✅ Connected", inline: true },
+                              { name: "Skin", value: w.skin, inline: true },
+                            ],
+                            footer: { text: "Brypto · Test Ping" },
+                            timestamp: new Date().toISOString(),
+                          }],
+                        }),
+                      });
+                      flash(res.ok ? `✓ ${w.name} connected!` : `✕ ${w.name} failed`, res.ok ? "ok" : "warn");
+                    } catch (err) {
+                      flash(`✕ ${w.name} error`, "warn");
+                    }
                   }}>Test</ActionButton>
                   <PillButton small active={w.skin === "premium"} color={COLORS.brand}
                     onClick={() => setWebhooks(p => p.map(x => x.id === w.id ? { ...x, skin: x.skin === "premium" ? "basic" : "premium" } : x))}>
