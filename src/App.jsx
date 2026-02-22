@@ -730,7 +730,7 @@ function CaptureEmbed({ call, fields }) {
   const M = "'JetBrains Mono', Consolas, monospace";
 
   return (
-    <div style={{ background: "#2b2d31", fontFamily: F, width: 800, color: bright, overflow: "hidden" }}>
+    <div style={{ background: "#2b2d31", fontFamily: F, width: 1600, color: bright, overflow: "hidden" }}>
 
       {/* Entry / AVG / SL grid */}
       <div style={{ display: "flex", overflow: "hidden", border: `2px solid ${borderC}`, borderRadius: 8 }}>
@@ -956,7 +956,7 @@ export default function BryptoCallEngine() {
     node.style.position = "fixed";
     node.style.left = "-9999px";
     node.style.top = "0";
-    node.style.width = "800px";
+    node.style.width = "1600px";
     node.style.display = "block";
     node.style.zIndex = "-1";
 
@@ -969,7 +969,7 @@ export default function BryptoCallEngine() {
       useCORS: true,
       allowTaint: true,
       logging: false,
-      width: 800,
+      width: 1600,
     });
 
     node.style.display = "none";
