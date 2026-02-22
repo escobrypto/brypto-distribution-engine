@@ -979,9 +979,6 @@ export default function BryptoCallEngine() {
     return embed;
   }
 
-    return embed;
-  }
-
   const sendToWebhook = async (url, embed) => {
     try {
       const body = JSON.stringify({ username: "Brypto", embeds: [embed] });
