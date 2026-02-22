@@ -58,6 +58,23 @@ function BryptoLogo({ size }) {
 
 
 // ── Helpers ──
+// Convert TradingView snapshot URL to direct image URL
+function tvToDirectImage(url) {
+  if (!url) return url;
+  // Already a direct s3/i image
+  if (url.includes("s3.tradingview.com") || url.includes("i.tradingview.com")) return url;
+  // Already ends in image extension
+  if (url.match(/\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i)) return url;
+  // Match https://www.tradingview.com/x/XXXXXXXX/ pattern
+  const match = url.match(/tradingview\.com\/x\/([A-Za-z0-9]+)/);
+  if (match) {
+    const id = match[1];
+    // TradingView uses this format for direct image access
+    return `https://s3.tradingview.com/snapshots/${id.charAt(0).toLowerCase()}/${id}.png`;
+  }
+  return url;
+}
+
 function formatPrice(p) {
   const n = parseFloat(p);
   if (isNaN(n)) return "—";
@@ -85,6 +102,17 @@ function getRTarget(entry, sl, mult, dir) {
   if (!e || !s) return "";
   const risk = Math.abs(e - s);
   return dir === "LONG" ? (e + risk * mult).toString() : (e - risk * mult).toString();
+}
+
+// getRTarget using effective (weighted) entry for accurate R when DCA is active
+function getRTargetEff(rawEntry, sl, mult, dir, dcas, entryPct) {
+  const dcaList = (dcas || []).filter(d => d.price);
+  const wAvg = dcaList.length > 0 ? weightedAvgEntry(rawEntry, entryPct, dcaList) : null;
+  const eff = wAvg || parseFloat(rawEntry);
+  const s = parseFloat(sl);
+  if (!eff || !s) return "";
+  const risk = Math.abs(eff - s);
+  return dir === "LONG" ? (eff + risk * mult).toString() : (eff - risk * mult).toString();
 }
 
 function weightedAvgEntry(entryPrice, entryPct, dcas) {
@@ -512,30 +540,49 @@ function PremiumEmbed({ call, fields }) {
             )}
 
             {/* Chart */}
-            {(call.chartTv || call.chartImg) && (
-              <div style={{ marginBottom: 10 }}>
-                {call.chartImg && (
-                  <img
-                    src={call.chartImg}
-                    alt="Chart"
-                    style={{
-                      width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 4,
-                      marginBottom: 4, border: "1px solid #3a3c43", display: "block",
-                    }}
-                    onError={e => { e.target.style.display = "none"; }}
-                  />
-                )}
-                {call.chartTv && (
-                  <div style={{
-                    padding: "4px 8px", borderRadius: 3, background: "rgba(255,255,255,.02)",
-                    border: "1px solid #3a3c43", display: "flex", alignItems: "center", gap: 5,
-                  }}>
-                    <span style={{ fontSize: 12 }}>📊</span>
-                    <span style={{ fontSize: 11, color: COLORS.info, fontWeight: 500 }}>View Chart on TradingView ↗</span>
-                  </div>
-                )}
-              </div>
-            )}
+            {(call.chartTv || call.chartImg) && (() => {
+              const imgUrl = call.chartImg ? tvToDirectImage(call.chartImg) : tvToDirectImage(call.chartTv);
+              return (
+                <div style={{ marginBottom: 10 }}>
+                  {imgUrl && (
+                    <div style={{ position: "relative" }}>
+                      <img
+                        src={imgUrl}
+                        alt="Chart"
+                        style={{
+                          width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 4,
+                          marginBottom: 4, border: "1px solid #3a3c43", display: "block",
+                        }}
+                        onError={e => {
+                          e.target.style.display = "none";
+                          const fb = e.target.nextSibling;
+                          if (fb) fb.style.display = "flex";
+                        }}
+                      />
+                      <div style={{
+                        display: "none", width: "100%", height: 120, borderRadius: 4,
+                        marginBottom: 4, border: "1px solid #3a3c43",
+                        background: "rgba(255,255,255,.02)",
+                        alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 4,
+                      }}>
+                        <span style={{ fontSize: 24 }}>📊</span>
+                        <span style={{ fontSize: 10, color: "#80848e" }}>Chart image will render in Discord</span>
+                        <span style={{ fontSize: 9, color: "#5d616b", fontFamily: "Consolas, monospace", wordBreak: "break-all", padding: "0 12px", textAlign: "center" }}>{imgUrl.slice(0, 60)}...</span>
+                      </div>
+                    </div>
+                  )}
+                  {call.chartTv && (
+                    <div style={{
+                      padding: "4px 8px", borderRadius: 3, background: "rgba(255,255,255,.02)",
+                      border: "1px solid #3a3c43", display: "flex", alignItems: "center", gap: 5,
+                    }}>
+                      <span style={{ fontSize: 12 }}>📊</span>
+                      <span style={{ fontSize: 11, color: COLORS.info, fontWeight: 500 }}>View Chart on TradingView ↗</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Notes */}
             {call.notes && (
@@ -734,7 +781,7 @@ export default function BryptoCallEngine() {
 
   const [fields, setFields] = useState({
     leverage: false, dca: false, timeframe: false, tags: false,
-    invalidation: false, notes: true, rr: true, trims: true, chart: false,
+    invalidation: false, notes: true, rr: true, trims: true, chart: true,
   });
 
   const [showFields, setShowFields] = useState(false);
@@ -749,10 +796,7 @@ export default function BryptoCallEngine() {
   const [updateNote, setUpdateNote] = useState("");
 
   const [webhooks, setWebhooks] = useState([
-    { id: "1", name: "Brypto Main", url: "https://discord.com/api/webhooks/...", on: true, skin: "premium" },
-    { id: "2", name: "VIP Calls", url: "https://discord.com/api/webhooks/...", on: true, skin: "premium" },
-    { id: "3", name: "Pepe Server", url: "https://discord.com/api/webhooks/...", on: true, skin: "basic" },
-    { id: "4", name: "Alpha Chat", url: "https://discord.com/api/webhooks/...", on: true, skin: "basic" },
+    { id: "1", name: "ESCO Calls", url: "https://discord.com/api/webhooks/1475190821518049484/tIGmaJnu1Jv9emzvOwVerfKqIiLT3KIg1Zcc9r6UTCyKjUmwuPIB-OMErfNfI9SzHS-Y", on: true, skin: "premium" },
   ]);
   const [showAddWH, setShowAddWH] = useState(false);
   const [newWH, setNewWH] = useState({ name: "", url: "", skin: "basic" });
@@ -802,15 +846,15 @@ export default function BryptoCallEngine() {
     setCall(prev => ({
       ...prev,
       targets: [
-        { price: getRTarget(prev.entry, prev.sl, 1, prev.direction), trim: equalTrim ? "34" : "", hit: false },
-        { price: getRTarget(prev.entry, prev.sl, 2, prev.direction), trim: equalTrim ? "33" : "", hit: false },
-        { price: getRTarget(prev.entry, prev.sl, 3, prev.direction), trim: equalTrim ? "33" : "", hit: false },
+        { price: getRTargetEff(prev.entry, prev.sl, 1, prev.direction, prev.dcas, prev.entryPct), trim: equalTrim ? "34" : "", hit: false },
+        { price: getRTargetEff(prev.entry, prev.sl, 2, prev.direction, prev.dcas, prev.entryPct), trim: equalTrim ? "33" : "", hit: false },
+        { price: getRTargetEff(prev.entry, prev.sl, 3, prev.direction, prev.dcas, prev.entryPct), trim: equalTrim ? "33" : "", hit: false },
       ],
     }));
   };
 
   const quickAddR = (mult) => {
-    const val = getRTarget(call.entry, call.sl, mult, call.direction);
+    const val = getRTargetEff(call.entry, call.sl, mult, call.direction, call.dcas, call.entryPct);
     if (!val) return;
     setCall(prev => {
       const targets = [...prev.targets];
@@ -821,13 +865,150 @@ export default function BryptoCallEngine() {
     });
   };
 
-  const handleSend = () => {
+  // Build a Discord-native embed that mirrors the premium preview as closely as possible
+  function buildDiscordEmbed(callData, flds) {
+    const dir = callData.direction;
+    const isL = dir === "LONG";
+    const color = isL ? 0x00DFA3 : 0xFF3868;
+    const arrow = isL ? "▲" : "▼";
+    const targets = (callData.targets || []).filter(t => t.price);
+    const dcaList = (callData.dcas || []).filter(d => d.price);
+    const wAvg = dcaList.length > 0 ? weightedAvgEntry(callData.entry, callData.entryPct, dcaList) : null;
+    const effectiveEntry = wAvg || parseFloat(callData.entry);
+    const slPctVal = effectiveEntry ? pctDiff(effectiveEntry, callData.sl) : null;
+    const maxRRVal = targets.length > 0 && effectiveEntry ? calcRR(effectiveEntry, callData.sl, targets[targets.length - 1].price) : null;
+    const st = STATUSES[callData.status] || STATUSES.pending;
+
+    // Build entry/SL header
+    let entryLabel = dcaList.length > 0 && callData.entryPct ? `ENTRY (${callData.entryPct}%)` : "ENTRY";
+    let entryLine = `\`${callData.entry ? formatPrice(callData.entry) : "—"}\``;
+    if (wAvg) entryLine += `  ·  **AVG** \`${formatPrice(wAvg)}\``;
+    let slLine = `\`${callData.sl ? formatPrice(callData.sl) : "—"}\``;
+    if (slPctVal) slLine += ` \`-${slPctVal}%\``;
+
+    const fields = [];
+
+    fields.push({ name: `📍 ${entryLabel}`, value: entryLine, inline: true });
+    fields.push({ name: "🛑 STOP LOSS", value: slLine, inline: true });
+
+    // Badges line
+    let badges = [];
+    if (callData.definedRisk) badges.push(`🎯 Risk: ${callData.definedRisk}${callData.riskUnit === "pct" ? "%" : "R"}`);
+    if (flds.leverage && callData.leverage) badges.push(`⚡ ${callData.leverage}x`);
+    if (dcaList.length > 0) badges.push(`DCA: ${dcaList.length} level${dcaList.length > 1 ? "s" : ""}`);
+    if (badges.length) fields.push({ name: "\u200b", value: badges.join("  ·  "), inline: false });
+
+    // DCA allocation detail
+    if (flds.dca && dcaList.length > 0) {
+      let dcaText = "";
+      if (callData.entry && callData.entryPct) {
+        dcaText += `**E**  \`${formatPrice(callData.entry)}\`  *entry*  —  **${callData.entryPct}%**\n`;
+      }
+      dcaList.forEach((d, i) => {
+        dcaText += `**${i + 1}**  \`${formatPrice(d.price)}\`  —  **${d.pct}%**\n`;
+      });
+      // Partial fill note
+      const entryOnly = parseFloat(callData.entryPct) || 0;
+      if (entryOnly < 99.5 && dcaList.length > 0) {
+        const entryOnlyR = calcRR(callData.entry, callData.sl, targets.length > 0 ? targets[targets.length - 1].price : 0);
+        dcaText += `💡 *Entry only (${entryOnly}%): R = ${entryOnlyR || "—"} · Full fill: R = ${maxRRVal || "—"}*`;
+      }
+      fields.push({ name: "POSITION ALLOCATION", value: dcaText.trim(), inline: false });
+    }
+
+    // Targets
+    if (targets.length > 0) {
+      let tgtText = targets.map((t, i) => {
+        const r = calcRR(effectiveEntry, callData.sl, t.price);
+        const tp = pctDiff(effectiveEntry, t.price);
+        const isLast = i === targets.length - 1 && targets.length > 1;
+        const prefix = isLast ? "★" : `${i + 1}`;
+        let line = `**${prefix}**  \`${formatPrice(t.price)}\``;
+        if (tp) line += `  *+${tp}%*`;
+        if (t.trim) line += `  ·  ${t.trim}%`;
+        if (r) line += `  —  **${r}R**`;
+        return line;
+      }).join("\n");
+      fields.push({ name: "🎯 TARGETS", value: tgtText, inline: false });
+    }
+
+    // Chart link
+    if (callData.chartTv) {
+      fields.push({ name: "\u200b", value: `📊 [View Chart on TradingView ↗](${callData.chartTv})`, inline: false });
+    }
+
+    // Notes
+    if (callData.notes) {
+      fields.push({ name: "\u200b", value: `> *${callData.notes}*`, inline: false });
+    }
+
+    // Build the embed object
+    const embed = {
+      color: color,
+      author: { name: "Brypto Call Engine" },
+      title: `${arrow} ${callData.pair || "BTC/USDT"}  ·  **${dir}**${callData.orderType === "limit" ? "  ·  LIMIT" : ""}`,
+      description: `${callData.analyst || "esco"} · ${new Date().toLocaleDateString("en", { month: "short", day: "numeric" })}${flds.timeframe && callData.timeframe ? ` · ${callData.timeframe}` : ""}${flds.tags && callData.tag ? ` · ${callData.tag}` : ""} · \`${callData.tradeId || ""}\`  —  ${st.icon} **${st.label}**`,
+      fields: fields,
+      footer: { text: `Brypto${maxRRVal ? `  ·  Max ${maxRRVal}R` : ""}` },
+      timestamp: new Date().toISOString(),
+    };
+
+    // Chart image — try chartImg first, fall back to converting chartTv
+    const imgSource = callData.chartImg || callData.chartTv;
+    if (imgSource) {
+      const directUrl = tvToDirectImage(imgSource);
+      if (directUrl && (directUrl.includes("s3.tradingview.com") || directUrl.match(/\.(png|jpg|jpeg|gif|webp)/i))) {
+        embed.image = { url: directUrl };
+      }
+    }
+
+    return embed;
+  }
+
+  const sendToWebhook = async (url, embed) => {
+    try {
+      const body = JSON.stringify({ username: "Brypto", embeds: [embed] });
+      console.log("Sending to:", url.slice(0, 60) + "...");
+      console.log("Payload:", body.slice(0, 200) + "...");
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body,
+      });
+      console.log("Response status:", res.status);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.error("Discord error:", res.status, errText);
+      }
+      return res.ok;
+    } catch (err) {
+      console.error("Webhook fetch error:", err.message || err);
+      return false;
+    }
+  };
+
+  const handleSend = async () => {
     if (!canSend) return;
     setSent(true);
     flash(`Sending to ${activeWH} servers...`);
-    setHistory(prev => [{ id: Date.now(), ...call, ts: Date.now(), dist: activeWH }, ...prev]);
+
+    const embed = buildDiscordEmbed(call, fields);
+    const activeWebhooks = webhooks.filter(w => w.on && w.url && !w.url.includes("..."));
+    const results = await Promise.all(activeWebhooks.map(w => sendToWebhook(w.url, embed)));
+    const successCount = results.filter(Boolean).length;
+    const failCount = results.length - successCount;
+
+    setHistory(prev => [{ id: Date.now(), ...call, ts: Date.now(), dist: successCount }, ...prev]);
     updateCall("status", "active");
-    setTimeout(() => { setSent(false); flash(`✓ Distributed to ${activeWH} servers`); }, 1100);
+
+    if (failCount > 0) {
+      flash(`✓ Sent to ${successCount}/${results.length} · ${failCount} failed`, "warn");
+    } else if (successCount > 0) {
+      flash(`✓ Distributed to ${successCount} server${successCount !== 1 ? "s" : ""}`);
+    } else {
+      flash("⚠ No valid webhook URLs configured", "warn");
+    }
+    setTimeout(() => setSent(false), 1100);
   };
 
   const handleCopy = () => {
@@ -1086,19 +1267,12 @@ export default function BryptoCallEngine() {
                       <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.muted, letterSpacing: ".7px", textTransform: "uppercase" }}>DCA Levels</span>
                       <div style={{ display: "flex", gap: 3 }}>
                         <button onClick={() => {
-                          // Auto-fill: distribute remaining % to last empty DCA or entry
-                          const total = allocationTotal(call.entryPct, call.dcas);
-                          if (total < 100 && call.dcas.length > 0) {
-                            const remaining = 100 - total;
-                            const lastIdx = call.dcas.length - 1;
-                            const lastDca = call.dcas[lastIdx];
-                            if (!lastDca.pct || parseFloat(lastDca.pct) === 0) {
-                              updateDCA(lastIdx, "pct", String(Math.round(remaining)));
-                            } else {
-                              // Add remaining to the last one
-                              updateDCA(lastIdx, "pct", String(Math.round(parseFloat(lastDca.pct) + remaining)));
-                            }
-                          }
+                          // Auto-fill: evenly distribute % across entry + all DCAs
+                          const count = 1 + call.dcas.length; // entry + DCAs
+                          const each = Math.floor(100 / count);
+                          const remainder = 100 - each * count;
+                          updateCall("entryPct", String(each + remainder)); // entry gets the remainder
+                          call.dcas.forEach((_, i) => updateDCA(i, "pct", String(each)));
                         }} style={{
                           background: "transparent", border: `1px dashed ${COLORS.brandBdr}`, borderRadius: 12,
                           color: COLORS.brand, fontSize: 9.5, fontWeight: 600, padding: "2px 7px", cursor: "pointer", fontFamily: FONT,
@@ -1168,15 +1342,20 @@ export default function BryptoCallEngine() {
                       )}
                       {fields.trims && !equalTrim && (
                         <button onClick={() => {
-                          const trimTotal = call.targets.reduce((s, t) => s + (parseFloat(t.trim) || 0), 0);
-                          if (trimTotal < 100) {
-                            const remaining = 100 - trimTotal;
-                            // Find last target with a price but no trim
-                            const lastIdx = [...call.targets].reverse().findIndex(t => t.price && (!t.trim || parseFloat(t.trim) === 0));
-                            if (lastIdx >= 0) {
-                              updateTarget(call.targets.length - 1 - lastIdx, "trim", String(Math.round(remaining)));
-                            }
-                          }
+                          const active = call.targets.filter(t => t.price);
+                          if (!active.length) return;
+                          const each = Math.floor(100 / active.length);
+                          const remainder = 100 - each * active.length;
+                          let activeIdx = 0;
+                          setCall(prev => ({
+                            ...prev,
+                            targets: prev.targets.map((t) => {
+                              if (!t.price) return t;
+                              const isLast = activeIdx === active.length - 1;
+                              activeIdx++;
+                              return { ...t, trim: String(isLast ? each + remainder : each) };
+                            }),
+                          }));
                         }} style={{
                           background: "transparent", border: `1px dashed ${COLORS.goldBg}`, borderRadius: 12,
                           color: COLORS.gold, fontSize: 9.5, fontWeight: 600, padding: "2px 7px", cursor: "pointer", fontFamily: FONT,
@@ -1428,7 +1607,24 @@ export default function BryptoCallEngine() {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <ActionButton small outline color={COLORS.brand} onClick={() => flash(`Test → ${w.name}`)}>Test</ActionButton>
+                  <ActionButton small outline color={COLORS.brand} onClick={async () => {
+                    if (!w.url || w.url.includes("...")) { flash("⚠ No valid URL", "warn"); return; }
+                    flash(`Testing → ${w.name}...`);
+                    const testEmbed = {
+                      color: 0x1CB8E0,
+                      author: { name: "Brypto Call Engine" },
+                      title: "🔗 Webhook Test",
+                      description: `Connection to **${w.name}** is working.`,
+                      fields: [
+                        { name: "Status", value: "✅ Connected", inline: true },
+                        { name: "Skin", value: w.skin, inline: true },
+                      ],
+                      footer: { text: "Brypto · Test Ping" },
+                      timestamp: new Date().toISOString(),
+                    };
+                    const ok = await sendToWebhook(w.url, testEmbed);
+                    flash(ok ? `✓ ${w.name} connected!` : `✕ ${w.name} failed`, ok ? "ok" : "warn");
+                  }}>Test</ActionButton>
                   <PillButton small active={w.skin === "premium"} color={COLORS.brand}
                     onClick={() => setWebhooks(p => p.map(x => x.id === w.id ? { ...x, skin: x.skin === "premium" ? "basic" : "premium" } : x))}>
                     {w.skin === "premium" ? "⭐" : "↑"}
