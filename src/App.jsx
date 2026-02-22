@@ -1270,7 +1270,7 @@ export default function BryptoCallEngine() {
     try {
       const formData = new FormData();
 
-      // Build a minimal embed for context (the image IS the embed visually)
+      // Send as plain message with file — NO embed wrapper so Discord shows image full size
       const isL = callData.direction === "LONG";
       const targets = (callData.targets || []).filter(t => t.price);
       const dcaList = (callData.dcas || []).filter(d => d.price);
@@ -1280,20 +1280,7 @@ export default function BryptoCallEngine() {
 
       const payload = {
         username: "Brypto",
-        embeds: [{
-          color: isL ? 0x00DFA3 : 0xFF3868,
-          image: { url: "attachment://brypto-call.png" },
-          footer: { text: `Brypto  ·  ${callData.pair || "BTC/USDT"}  ·  ${callData.direction}${maxRRVal ? `  ·  Max ${maxRRVal}R` : ""}` },
-          timestamp: new Date().toISOString(),
-        }],
       };
-
-      // Add TradingView link as a field if present
-      if (callData.chartTv) {
-        payload.embeds[0].fields = [
-          { name: "\u200b", value: `📊 [View Chart on TradingView ↗](${callData.chartTv})`, inline: false }
-        ];
-      }
 
       formData.append("payload_json", JSON.stringify(payload));
       formData.append("files[0]", imageBlob, "brypto-call.png");
