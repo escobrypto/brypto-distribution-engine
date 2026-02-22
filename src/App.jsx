@@ -720,234 +720,121 @@ function CaptureEmbed({ call, fields }) {
   const effectiveEntry = wAvg || parseFloat(call.entry);
   const slPct = effectiveEntry ? pctDiff(effectiveEntry, call.sl) : null;
   const maxRR = targets.length > 0 && effectiveEntry ? calcRR(effectiveEntry, call.sl, targets[targets.length - 1].price) : null;
-  const st = STATUSES[call.status] || STATUSES.pending;
-  const updates = call.updates || [];
 
-  const bg = "#2b2d31";
-  const fieldColor = "#949ba4";
   const bright = "#f2f3f5";
+  const fieldColor = "#949ba4";
   const dim = "#5d616b";
   const cellBg = "#232428";
   const borderC = "#3a3c43";
-
-  const F = "'DM Sans', 'gg sans', 'Noto Sans', Helvetica, Arial, sans-serif";
-  const M = "'JetBrains Mono', 'SF Mono', Consolas, monospace";
+  const F = "'DM Sans', 'gg sans', Helvetica, Arial, sans-serif";
+  const M = "'JetBrains Mono', Consolas, monospace";
 
   return (
-    <div style={{ background: "#2b2d31", borderRadius: 14, fontFamily: F, width: 650, color: bright, overflow: "hidden" }}>
-      {/* Top accent bar */}
-      <div style={{ height: 10, background: accent, width: "100%" }} />
+    <div style={{ background: "#2b2d31", fontFamily: F, width: 800, color: bright, overflow: "hidden" }}>
 
-      <div style={{ padding: "48px 40px" }}>
-
-        {/* Author */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <div style={{ width: 20, height: 20, borderRadius: 4, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 14, fontWeight: 900, fontFamily: "Georgia, serif", color: "#1cb8e0" }}>B</span>
+      {/* Entry / AVG / SL grid */}
+      <div style={{ display: "flex", overflow: "hidden", border: `2px solid ${borderC}`, borderRadius: 8 }}>
+        <div style={{ flex: 1, padding: "18px 20px", background: cellBg }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 4 }}>
+            ENTRY{dcaList.length > 0 && call.entryPct ? ` (${call.entryPct}%)` : ""}
           </div>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#dbdee1" }}>Brypto Call Engine</span>
+          <div style={{ fontSize: 24, fontWeight: 700, color: bright, fontFamily: M }}>{call.entry ? formatPrice(call.entry) : "\u2014"}</div>
         </div>
-
-        {/* Title + status */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: accent, fontSize: 18, fontWeight: 800 }}>{isLong ? "▲" : "▼"}</span>
-            <span style={{ fontSize: 28, fontWeight: 800, color: bright }}>{call.pair || "BTC/USDT"}</span>
-            <span style={{ fontSize: 14, fontWeight: 700, padding: "3px 10px", borderRadius: 4, background: isLong ? "rgba(0,223,163,.12)" : "rgba(255,56,104,.12)", color: accent }}>{call.direction}</span>
-            {call.orderType === "limit" && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 5px", borderRadius: 3, background: "rgba(255,255,255,.05)", color: fieldColor }}>LIMIT</span>
-            )}
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700, padding: "4px 12px", borderRadius: 5, background: st.bg, color: st.color }}>{st.icon} {st.label}</span>
-        </div>
-
-        {/* Meta */}
-        <div style={{ fontSize: 15, color: fieldColor, marginBottom: 32 }}>
-          {call.analyst || "Analyst"} · {new Date().toLocaleDateString("en", { month: "short", day: "numeric" })}
-          {fields.timeframe && call.timeframe ? ` · ${call.timeframe}` : ""}
-          {fields.tags && call.tag ? ` · ${call.tag}` : ""}
-          {call.tradeId ? ` · ${call.tradeId}` : ""}
-        </div>
-
-        {/* Entry / AVG / SL grid */}
-        <div style={{
-          display: "flex", marginBottom: 20, borderRadius: 6, overflow: "hidden", border: `1px solid ${borderC}`,
-        }}>
-          <div style={{ flex: 1, padding: "22px 24px", background: cellBg }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>
-              ENTRY{dcaList.length > 0 && call.entryPct ? ` (${call.entryPct}%)` : ""}
-            </div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: bright, fontFamily: M }}>{call.entry ? formatPrice(call.entry) : "—"}</div>
-          </div>
-          {wAvg && (
-            <div style={{ flex: 1, padding: "22px 24px", background: cellBg, borderLeft: `1px solid ${borderC}` }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>AVG ENTRY</div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: "#a99bf5", fontFamily: M }}>{formatPrice(wAvg)}</div>
-            </div>
-          )}
-          <div style={{ flex: 1, padding: "22px 24px", background: "rgba(255,56,104,.03)", borderLeft: `1px solid ${borderC}` }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>STOP LOSS</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-              <span style={{ fontSize: 26, fontWeight: 700, color: "#ff3868", fontFamily: M }}>{call.sl ? formatPrice(call.sl) : "—"}</span>
-              {slPct && <span style={{ fontSize: 14, color: "#ff3868", opacity: 0.6, fontWeight: 600 }}>-{slPct}%</span>}
-            </div>
-          </div>
-        </div>
-
-        {/* Badges */}
-        {((fields.leverage && call.leverage) || dcaList.length > 0 || call.definedRisk) && (
-          <div style={{ display: "flex", gap: 10, marginBottom: 26, flexWrap: "wrap" }}>
-            {call.definedRisk && (
-              <span style={{ padding: "5px 12px", borderRadius: 5, fontSize: 13, fontWeight: 700, background: "rgba(255,56,104,.08)", color: "#ff3868" }}>
-                🎯 Risk: {call.definedRisk}{call.riskUnit === "pct" ? "% portfolio" : "R"}
-              </span>
-            )}
-            {fields.leverage && call.leverage && (
-              <span style={{ padding: "5px 12px", borderRadius: 5, fontSize: 13, fontWeight: 700, background: "rgba(240,176,48,.08)", color: "#f0b030" }}>
-                ⚡ {call.leverage}x
-              </span>
-            )}
-            {dcaList.length > 0 && (
-              <span style={{ padding: "5px 12px", borderRadius: 5, fontSize: 13, fontWeight: 600, background: "rgba(28,184,224,.08)", color: "#1cb8e0" }}>
-                DCA: {dcaList.length} level{dcaList.length > 1 ? "s" : ""}
-              </span>
-            )}
+        {wAvg && (
+          <div style={{ flex: 1, padding: "18px 20px", background: cellBg, borderLeft: `2px solid ${borderC}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 4 }}>AVG ENTRY</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "#a99bf5", fontFamily: M }}>{formatPrice(wAvg)}</div>
           </div>
         )}
+        <div style={{ flex: 1, padding: "18px 20px", background: "rgba(255,56,104,.04)", borderLeft: `2px solid ${borderC}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 4 }}>STOP LOSS</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <span style={{ fontSize: 24, fontWeight: 700, color: "#ff3868", fontFamily: M }}>{call.sl ? formatPrice(call.sl) : "\u2014"}</span>
+            {slPct && <span style={{ fontSize: 13, color: "#ff3868", opacity: 0.6, fontWeight: 600 }}>-{slPct}%</span>}
+          </div>
+        </div>
+      </div>
 
-        {/* DCA Allocation */}
-        {fields.dca && dcaList.length > 0 && (
-          <div style={{ marginBottom: 30 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 12 }}>POSITION ALLOCATION</div>
-            {call.entry && call.entryPct && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "13px 20px", borderRadius: 6, background: "rgba(0,223,163,.04)", marginBottom: 3, borderLeft: "3px solid rgba(0,223,163,.3)" }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#00dfa3" }}>E</span>
-                  <span style={{ fontSize: 19, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(call.entry)}</span>
-                  <span style={{ fontSize: 11, color: fieldColor, fontStyle: "italic" }}>entry</span>
+      {/* Badges */}
+      {((fields.leverage && call.leverage) || dcaList.length > 0 || call.definedRisk) && (
+        <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+          {call.definedRisk && (
+            <span style={{ padding: "5px 12px", borderRadius: 5, fontSize: 12, fontWeight: 700, background: "rgba(255,56,104,.1)", color: "#ff3868" }}>
+              \ud83c\udfaf Risk: {call.definedRisk}{call.riskUnit === "pct" ? "% portfolio" : "R"}
+            </span>
+          )}
+          {fields.leverage && call.leverage && (
+            <span style={{ padding: "5px 12px", borderRadius: 5, fontSize: 12, fontWeight: 700, background: "rgba(240,176,48,.1)", color: "#f0b030" }}>
+              \u26a1 {call.leverage}x
+            </span>
+          )}
+          {dcaList.length > 0 && (
+            <span style={{ padding: "5px 12px", borderRadius: 5, fontSize: 12, fontWeight: 600, background: "rgba(28,184,224,.1)", color: "#1cb8e0" }}>
+              DCA: {dcaList.length} level{dcaList.length > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Targets with colored R values */}
+      {targets.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 8 }}>TARGETS</div>
+          {targets.map((t, i) => {
+            const r = calcRR(effectiveEntry, call.sl, t.price);
+            const tp = pctDiff(effectiveEntry, t.price);
+            const isLast = i === targets.length - 1 && targets.length > 1;
+            return (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 16px", borderRadius: 6, marginBottom: 4,
+                background: isLast ? (isLong ? "rgba(0,223,163,.06)" : "rgba(255,56,104,.06)") : "rgba(255,255,255,.03)",
+                borderLeft: isLast ? `4px solid ${accent}` : "4px solid transparent",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: isLast ? accent : fieldColor }}>
+                    {isLast && targets.length > 1 ? "\u2605" : i + 1}
+                  </span>
+                  <span style={{ fontSize: 18, fontWeight: 600, fontFamily: M, color: isLast ? accent : "#e0e2e8" }}>{formatPrice(t.price)}</span>
+                  {tp && <span style={{ fontSize: 12, color: "#00dfa3", opacity: 0.5 }}>+{tp}%</span>}
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#00dfa3" }}>{call.entryPct}%</span>
-              </div>
-            )}
-            {dcaList.map((d, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "13px 20px", borderRadius: 6, background: "rgba(255,255,255,.02)", marginBottom: 6 }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: fieldColor }}>{i + 1}</span>
-                  <span style={{ fontSize: 19, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(d.price)}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {t.trim && <span style={{ fontSize: 12, fontWeight: 600, color: fieldColor }}>{t.trim}%</span>}
+                  {r && <span style={{ fontSize: 16, fontWeight: 700, fontFamily: M, color: parseFloat(r) >= 3 ? "#00dfa3" : parseFloat(r) >= 2 ? "#f0b030" : fieldColor }}>{r}R</span>}
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#1cb8e0" }}>{d.pct}%</span>
               </div>
-            ))}
+            );
+          })}
+        </div>
+      )}
+
+      {/* Chart */}
+      {(call.chartImg || call.chartTv) && (() => {
+        const imgUrl = call.chartImg ? tvToDirectImage(call.chartImg) : tvToDirectImage(call.chartTv);
+        return imgUrl ? (
+          <div style={{ marginTop: 16 }}>
+            <img src={imgUrl} alt="Chart" crossOrigin="anonymous" style={{ width: "100%", borderRadius: 8, border: `2px solid ${borderC}`, display: "block" }} onError={e => { e.target.style.display = "none"; }} />
+          </div>
+        ) : null;
+      })()}
+
+      {/* Footer */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, paddingTop: 12, borderTop: `1px solid ${borderC}` }}>
+        <span style={{ fontSize: 12, color: dim }}>Brypto</span>
+        {maxRR && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {(() => {
-              const entryOnly = parseFloat(call.entryPct) || 0;
-              if (entryOnly < 99.5 && dcaList.length > 0 && effectiveEntry) {
-                const entryOnlyR = calcRR(call.entry, call.sl, targets.length > 0 ? targets[targets.length - 1].price : 0);
-                return (
-                  <div style={{ fontSize: 11, color: fieldColor, padding: "3px 10px", marginTop: 4, fontStyle: "italic" }}>
-                    💡 Entry only ({entryOnly}%): R = {entryOnlyR || "—"} · Full fill: R = {maxRR || "—"}
-                  </div>
-                );
+              const wR = weightedRealizedR(effectiveEntry || call.entry, call.sl, call.targets);
+              if (wR && call.targets.some(t => t.trim)) {
+                return <span style={{ fontSize: 13, color: fieldColor }}>Weighted: <span style={{ fontWeight: 700, color: parseFloat(wR) >= 2 ? "#00dfa3" : "#f0b030" }}>{wR}R</span></span>;
               }
               return null;
             })()}
+            <span style={{ fontSize: 15, fontWeight: 700, color: parseFloat(maxRR) >= 3 ? "#00dfa3" : "#f0b030" }}>
+              <span style={{ fontSize: 11, color: dim, fontWeight: 500, marginRight: 3 }}>Max</span>{maxRR}R
+            </span>
           </div>
         )}
-
-        {/* Targets */}
-        {targets.length > 0 && (
-          <div style={{ marginBottom: 30 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 12 }}>TARGETS</div>
-            {targets.map((t, i) => {
-              const r = calcRR(effectiveEntry, call.sl, t.price);
-              const tp = pctDiff(effectiveEntry, t.price);
-              const isLast = i === targets.length - 1 && targets.length > 1;
-              const isHit = t.hit;
-              return (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "14px 20px", borderRadius: 6, marginBottom: 6,
-                  background: isHit ? "rgba(0,223,163,.06)" : isLast ? (isLong ? "rgba(0,223,163,.04)" : "rgba(255,56,104,.04)") : "rgba(255,255,255,.02)",
-                  borderLeft: `3px solid ${isHit ? "#00dfa3" : isLast ? accent : "transparent"}`,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: isHit ? "#00dfa3" : isLast ? accent : fieldColor, width: 13 }}>
-                      {isHit ? "✓" : isLast && targets.length > 1 ? "★" : i + 1}
-                    </span>
-                    <span style={{ fontSize: 20, fontWeight: 600, fontFamily: M, color: isHit ? "#00dfa3" : isLast ? accent : "#e0e2e8" }}>{formatPrice(t.price)}</span>
-                    {tp && <span style={{ fontSize: 11, color: isLong ? "#00dfa3" : "#e0e2e8", opacity: 0.45 }}>+{tp}%</span>}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {t.trim && <span style={{ fontSize: 11, fontWeight: 600, color: fieldColor }}>{t.trim}%</span>}
-                    {r && <span style={{ fontSize: 18, fontWeight: 700, fontFamily: M, color: parseFloat(r) >= 3 ? "#00dfa3" : parseFloat(r) >= 2 ? "#f0b030" : fieldColor }}>{r}R</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Chart image */}
-        {(call.chartImg || call.chartTv) && (() => {
-          const imgUrl = call.chartImg ? tvToDirectImage(call.chartImg) : tvToDirectImage(call.chartTv);
-          return imgUrl ? (
-            <div style={{ marginBottom: 28 }}>
-              <img src={imgUrl} alt="Chart" crossOrigin="anonymous" style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 8, border: `2px solid ${borderC}`, display: "block" }} onError={e => { e.target.style.display = "none"; }} />
-            </div>
-          ) : null;
-        })()}
-
-        {/* TradingView link */}
-        {call.chartTv && (
-          <div style={{ padding: "12px 18px", borderRadius: 6, background: "rgba(255,255,255,.02)", border: `1px solid ${borderC}`, marginBottom: 26, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13 }}>📊</span>
-            <span style={{ fontSize: 12, color: "#3b82f6", fontWeight: 500 }}>View Chart on TradingView ↗</span>
-          </div>
-        )}
-
-        {/* Notes */}
-        {call.notes && (
-          <div style={{ fontSize: 15, color: "#b0b4c4", lineHeight: 1.5, padding: "14px 18px", background: "rgba(255,255,255,.02)", borderRadius: 6, borderLeft: "5px solid rgba(28,184,224,.3)", marginBottom: 28, fontStyle: "italic" }}>
-            {call.notes}
-          </div>
-        )}
-
-        {/* Updates */}
-        {updates.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 8 }}>UPDATES</div>
-            {updates.map((u, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,.02)", borderLeft: `3px solid ${u.color || "#3b82f6"}30`, marginBottom: 3 }}>
-                <span style={{ fontSize: 11 }}>{u.icon}</span>
-                <span style={{ fontSize: 12.5, color: "#b5b9c9", flex: 1 }}>{u.text}</span>
-                <span style={{ fontSize: 11, color: dim }}>{u.time}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 20, marginTop: 14, borderTop: `2px solid ${borderC}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 3, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 10, fontWeight: 900, fontFamily: "Georgia, serif", color: "#1cb8e0" }}>B</span>
-            </div>
-            <span style={{ fontSize: 13, color: dim }}>Brypto</span>
-          </div>
-          {maxRR && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {(() => {
-                const wR = weightedRealizedR(effectiveEntry || call.entry, call.sl, call.targets);
-                if (wR && call.targets.some(t => t.trim)) {
-                  return <span style={{ fontSize: 14, color: fieldColor }}>Weighted: <span style={{ fontWeight: 700, color: parseFloat(wR) >= 2 ? "#00dfa3" : "#f0b030" }}>{wR}R</span></span>;
-                }
-                return null;
-              })()}
-              <span style={{ fontSize: 16, fontWeight: 700, color: parseFloat(maxRR) >= 3 ? "#00dfa3" : "#f0b030" }}>
-                <span style={{ fontSize: 12, color: dim, fontWeight: 500, marginRight: 3 }}>Max</span>{maxRR}R
-              </span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -1069,7 +956,7 @@ export default function BryptoCallEngine() {
     node.style.position = "fixed";
     node.style.left = "-9999px";
     node.style.top = "0";
-    node.style.width = "650px";
+    node.style.width = "800px";
     node.style.display = "block";
     node.style.zIndex = "-1";
 
@@ -1078,11 +965,11 @@ export default function BryptoCallEngine() {
 
     const canvas = await window.html2canvas(node, {
       backgroundColor: "#2b2d31",
-      scale: 3,
+      scale: 2,
       useCORS: true,
       allowTaint: true,
       logging: false,
-      width: 650,
+      width: 800,
     });
 
     node.style.display = "none";
@@ -1272,11 +1159,98 @@ export default function BryptoCallEngine() {
     try {
       const formData = new FormData();
 
-      // Raw file attachment — Discord displays these MUCH larger than embed images
-      formData.append("payload_json", JSON.stringify({ username: "Brypto" }));
+      const isL = callData.direction === "LONG";
+      const targets = (callData.targets || []).filter(t => t.price);
+      const dcaList = (callData.dcas || []).filter(d => d.price);
+      const wAvg = dcaList.length > 0 ? weightedAvgEntry(callData.entry, callData.entryPct, dcaList) : null;
+      const effectiveEntry = wAvg || parseFloat(callData.entry);
+      const slPctVal = effectiveEntry ? pctDiff(effectiveEntry, callData.sl) : null;
+      const maxRRVal = targets.length > 0 && effectiveEntry ? calcRR(effectiveEntry, callData.sl, targets[targets.length - 1].price) : null;
+
+      const embedFields = [];
+
+      // Entry / Avg / SL
+      let entryName = dcaList.length > 0 && callData.entryPct ? `ENTRY (${callData.entryPct}%)` : "ENTRY";
+      embedFields.push({ name: entryName, value: `**\`${callData.entry ? formatPrice(callData.entry) : "—"}\`**`, inline: true });
+      if (wAvg) embedFields.push({ name: "AVG ENTRY", value: `**\`${formatPrice(wAvg)}\`**`, inline: true });
+      let slVal = `**\`${callData.sl ? formatPrice(callData.sl) : "—"}\`**`;
+      if (slPctVal) slVal += ` \`-${slPctVal}%\``;
+      embedFields.push({ name: "STOP LOSS", value: slVal, inline: true });
+
+      // Badges
+      let badges = [];
+      if (callData.definedRisk) badges.push(`🎯 Risk: ${callData.definedRisk}${callData.riskUnit === "pct" ? "%" : "R"}`);
+      if (flds.leverage && callData.leverage) badges.push(`⚡ ${callData.leverage}x`);
+      if (dcaList.length > 0) badges.push(`DCA: ${dcaList.length} level${dcaList.length > 1 ? "s" : ""}`);
+      if (badges.length) embedFields.push({ name: "\u200b", value: badges.join("  ·  "), inline: false });
+
+      // DCA
+      if (flds.dca && dcaList.length > 0) {
+        let dcaLines = [];
+        if (callData.entry && callData.entryPct) dcaLines.push(`\`E\`  \`${formatPrice(callData.entry)}\`  entry ── **${callData.entryPct}%**`);
+        dcaList.forEach((d, i) => dcaLines.push(`\`${i + 1}\`  \`${formatPrice(d.price)}\` ──── **${d.pct}%**`));
+        const entryOnly = parseFloat(callData.entryPct) || 0;
+        if (entryOnly < 99.5 && dcaList.length > 0) {
+          const entryOnlyR = calcRR(callData.entry, callData.sl, targets.length > 0 ? targets[targets.length - 1].price : 0);
+          dcaLines.push(`💡 *Entry only (${entryOnly}%): R = ${entryOnlyR || "—"} · Full fill: R = ${maxRRVal || "—"}*`);
+        }
+        embedFields.push({ name: "POSITION ALLOCATION", value: dcaLines.join("\n"), inline: false });
+      }
+
+      // Targets
+      if (targets.length > 0) {
+        let tgtLines = targets.map((t, i) => {
+          const r = calcRR(effectiveEntry, callData.sl, t.price);
+          const tp = pctDiff(effectiveEntry, t.price);
+          const isLast = i === targets.length - 1 && targets.length > 1;
+          const prefix = isLast ? "★" : `${i + 1}`;
+          let line = `\`${prefix}\`  **\`${formatPrice(t.price)}\`**`;
+          if (tp) line += `  *+${tp}%*`;
+          let right = [];
+          if (t.trim) right.push(`${t.trim}%`);
+          if (r) right.push(`**${r}R**`);
+          if (right.length) line += `  ─  ${right.join("  ")}`;
+          return line;
+        });
+        embedFields.push({ name: "TARGETS", value: tgtLines.join("\n"), inline: false });
+      }
+
+      // Notes
+      if (callData.notes) embedFields.push({ name: "\u200b", value: `> *${callData.notes}*`, inline: false });
+
+      // Chart link
+      if (callData.chartTv) embedFields.push({ name: "\u200b", value: `📊 [View Chart on TradingView ↗](${callData.chartTv})`, inline: false });
+
+      // Title
+      const arrow = isL ? "▲" : "▼";
+      let titleParts = [`${arrow} **${callData.pair || "BTC/USDT"}**`, `\`${callData.direction}\``];
+      if (callData.orderType === "limit") titleParts.push("`LIMIT`");
+
+      // Meta
+      let metaParts = [callData.analyst || "esco"];
+      metaParts.push(new Date().toLocaleDateString("en", { month: "short", day: "numeric" }));
+      if (flds.timeframe && callData.timeframe) metaParts.push(callData.timeframe);
+      if (flds.tags && callData.tag) metaParts.push(callData.tag);
+      metaParts.push(`\`${callData.tradeId || ""}\``);
+
+      const payload = {
+        username: "Brypto",
+        embeds: [{
+          color: isL ? 0x00DFA3 : 0xFF3868,
+          author: { name: "Brypto Call Engine" },
+          title: titleParts.join("  "),
+          description: metaParts.join(" · "),
+          fields: embedFields,
+          image: { url: "attachment://brypto-call.png" },
+          footer: { text: `Brypto${maxRRVal ? `  ·  Max ${maxRRVal}R` : ""}` },
+          timestamp: new Date().toISOString(),
+        }],
+      };
+
+      formData.append("payload_json", JSON.stringify(payload));
       formData.append("files[0]", imageBlob, "brypto-call.png");
 
-      console.log("Sending image to:", url.slice(0, 60) + "...");
+      console.log("Sending hybrid to:", url.slice(0, 60) + "...");
       const res = await fetch(url, { method: "POST", body: formData });
       console.log("Response status:", res.status);
       if (!res.ok) {
