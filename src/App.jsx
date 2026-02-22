@@ -708,6 +708,249 @@ function BasicEmbed({ call }) {
   );
 }
 
+// ══════════════════════════════════════════════════════════════
+// CAPTURE EMBED (for html2canvas → Discord image)
+// ══════════════════════════════════════════════════════════════
+function CaptureEmbed({ call, fields }) {
+  const isLong = call.direction === "LONG";
+  const accent = isLong ? "#00dfa3" : "#ff3868";
+  const targets = (call.targets || []).filter(t => t.price);
+  const dcaList = (call.dcas || []).filter(d => d.price);
+  const wAvg = dcaList.length > 0 ? weightedAvgEntry(call.entry, call.entryPct, dcaList) : null;
+  const effectiveEntry = wAvg || parseFloat(call.entry);
+  const slPct = effectiveEntry ? pctDiff(effectiveEntry, call.sl) : null;
+  const maxRR = targets.length > 0 && effectiveEntry ? calcRR(effectiveEntry, call.sl, targets[targets.length - 1].price) : null;
+  const st = STATUSES[call.status] || STATUSES.pending;
+  const updates = call.updates || [];
+
+  const bg = "#2b2d31";
+  const fieldColor = "#949ba4";
+  const bright = "#f2f3f5";
+  const dim = "#5d616b";
+  const cellBg = "#232428";
+  const borderC = "#3a3c43";
+
+  const F = "'DM Sans', 'gg sans', 'Noto Sans', Helvetica, Arial, sans-serif";
+  const M = "'JetBrains Mono', 'SF Mono', Consolas, monospace";
+
+  return (
+    <div style={{ background: bg, padding: "16px 18px", fontFamily: F, width: 520, color: bright }}>
+      {/* Accent bar + header */}
+      <div style={{ borderLeft: `4px solid ${accent}`, paddingLeft: 14 }}>
+
+        {/* Author */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <div style={{ width: 20, height: 20, borderRadius: 4, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 14, fontWeight: 900, fontFamily: "Georgia, serif", color: "#1cb8e0" }}>B</span>
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#dbdee1" }}>Brypto Call Engine</span>
+        </div>
+
+        {/* Title + status */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ color: accent, fontSize: 14, fontWeight: 800 }}>{isLong ? "▲" : "▼"}</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: bright }}>{call.pair || "BTC/USDT"}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: isLong ? "rgba(0,223,163,.12)" : "rgba(255,56,104,.12)", color: accent }}>{call.direction}</span>
+            {call.orderType === "limit" && (
+              <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 5px", borderRadius: 3, background: "rgba(255,255,255,.05)", color: fieldColor }}>LIMIT</span>
+            )}
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 4, background: st.bg, color: st.color }}>{st.icon} {st.label}</span>
+        </div>
+
+        {/* Meta */}
+        <div style={{ fontSize: 12.5, color: fieldColor, marginBottom: 14 }}>
+          {call.analyst || "Analyst"} · {new Date().toLocaleDateString("en", { month: "short", day: "numeric" })}
+          {fields.timeframe && call.timeframe ? ` · ${call.timeframe}` : ""}
+          {fields.tags && call.tag ? ` · ${call.tag}` : ""}
+          {call.tradeId ? ` · ${call.tradeId}` : ""}
+        </div>
+
+        {/* Entry / AVG / SL grid */}
+        <div style={{
+          display: "flex", marginBottom: 12, borderRadius: 5, overflow: "hidden", border: `1px solid ${borderC}`,
+        }}>
+          <div style={{ flex: 1, padding: "9px 12px", background: cellBg }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>
+              ENTRY{dcaList.length > 0 && call.entryPct ? ` (${call.entryPct}%)` : ""}
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: bright, fontFamily: M }}>{call.entry ? formatPrice(call.entry) : "—"}</div>
+          </div>
+          {wAvg && (
+            <div style={{ flex: 1, padding: "9px 12px", background: cellBg, borderLeft: `1px solid ${borderC}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>AVG ENTRY</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#a99bf5", fontFamily: M }}>{formatPrice(wAvg)}</div>
+            </div>
+          )}
+          <div style={{ flex: 1, padding: "9px 12px", background: "rgba(255,56,104,.03)", borderLeft: `1px solid ${borderC}` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 3 }}>STOP LOSS</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: "#ff3868", fontFamily: M }}>{call.sl ? formatPrice(call.sl) : "—"}</span>
+              {slPct && <span style={{ fontSize: 11, color: "#ff3868", opacity: 0.6, fontWeight: 600 }}>-{slPct}%</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Badges */}
+        {((fields.leverage && call.leverage) || dcaList.length > 0 || call.definedRisk) && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+            {call.definedRisk && (
+              <span style={{ padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "rgba(255,56,104,.08)", color: "#ff3868" }}>
+                🎯 Risk: {call.definedRisk}{call.riskUnit === "pct" ? "% portfolio" : "R"}
+              </span>
+            )}
+            {fields.leverage && call.leverage && (
+              <span style={{ padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "rgba(240,176,48,.08)", color: "#f0b030" }}>
+                ⚡ {call.leverage}x
+              </span>
+            )}
+            {dcaList.length > 0 && (
+              <span style={{ padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: "rgba(28,184,224,.08)", color: "#1cb8e0" }}>
+                DCA: {dcaList.length} level{dcaList.length > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* DCA Allocation */}
+        {fields.dca && dcaList.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 6 }}>POSITION ALLOCATION</div>
+            {call.entry && call.entryPct && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 10px", borderRadius: 4, background: "rgba(0,223,163,.04)", marginBottom: 3, borderLeft: "3px solid rgba(0,223,163,.3)" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#00dfa3" }}>E</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(call.entry)}</span>
+                  <span style={{ fontSize: 11, color: fieldColor, fontStyle: "italic" }}>entry</span>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#00dfa3" }}>{call.entryPct}%</span>
+              </div>
+            )}
+            {dcaList.map((d, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,.02)", marginBottom: 3 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: fieldColor }}>{i + 1}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, fontFamily: M, color: "#e0e2e8" }}>{formatPrice(d.price)}</span>
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#1cb8e0" }}>{d.pct}%</span>
+              </div>
+            ))}
+            {(() => {
+              const entryOnly = parseFloat(call.entryPct) || 0;
+              if (entryOnly < 99.5 && dcaList.length > 0 && effectiveEntry) {
+                const entryOnlyR = calcRR(call.entry, call.sl, targets.length > 0 ? targets[targets.length - 1].price : 0);
+                return (
+                  <div style={{ fontSize: 11, color: fieldColor, padding: "3px 10px", marginTop: 4, fontStyle: "italic" }}>
+                    💡 Entry only ({entryOnly}%): R = {entryOnlyR || "—"} · Full fill: R = {maxRR || "—"}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        )}
+
+        {/* Targets */}
+        {targets.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 6 }}>TARGETS</div>
+            {targets.map((t, i) => {
+              const r = calcRR(effectiveEntry, call.sl, t.price);
+              const tp = pctDiff(effectiveEntry, t.price);
+              const isLast = i === targets.length - 1 && targets.length > 1;
+              const isHit = t.hit;
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "5px 10px", borderRadius: 4, marginBottom: 3,
+                  background: isHit ? "rgba(0,223,163,.06)" : isLast ? (isLong ? "rgba(0,223,163,.04)" : "rgba(255,56,104,.04)") : "rgba(255,255,255,.02)",
+                  borderLeft: `3px solid ${isHit ? "#00dfa3" : isLast ? accent : "transparent"}`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: isHit ? "#00dfa3" : isLast ? accent : fieldColor, width: 13 }}>
+                      {isHit ? "✓" : isLast && targets.length > 1 ? "★" : i + 1}
+                    </span>
+                    <span style={{ fontSize: 15, fontWeight: 600, fontFamily: M, color: isHit ? "#00dfa3" : isLast ? accent : "#e0e2e8" }}>{formatPrice(t.price)}</span>
+                    {tp && <span style={{ fontSize: 11, color: isLong ? "#00dfa3" : "#e0e2e8", opacity: 0.45 }}>+{tp}%</span>}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {t.trim && <span style={{ fontSize: 11, fontWeight: 600, color: fieldColor }}>{t.trim}%</span>}
+                    {r && <span style={{ fontSize: 13, fontWeight: 700, fontFamily: M, color: parseFloat(r) >= 3 ? "#00dfa3" : parseFloat(r) >= 2 ? "#f0b030" : fieldColor }}>{r}R</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Chart image */}
+        {(call.chartImg || call.chartTv) && (() => {
+          const imgUrl = call.chartImg ? tvToDirectImage(call.chartImg) : tvToDirectImage(call.chartTv);
+          return imgUrl ? (
+            <div style={{ marginBottom: 10 }}>
+              <img src={imgUrl} alt="Chart" crossOrigin="anonymous" style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: 5, border: `1px solid ${borderC}`, display: "block" }} onError={e => { e.target.style.display = "none"; }} />
+            </div>
+          ) : null;
+        })()}
+
+        {/* TradingView link */}
+        {call.chartTv && (
+          <div style={{ padding: "5px 10px", borderRadius: 4, background: "rgba(255,255,255,.02)", border: `1px solid ${borderC}`, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 13 }}>📊</span>
+            <span style={{ fontSize: 12, color: "#3b82f6", fontWeight: 500 }}>View Chart on TradingView ↗</span>
+          </div>
+        )}
+
+        {/* Notes */}
+        {call.notes && (
+          <div style={{ fontSize: 13, color: "#b0b4c4", lineHeight: 1.5, padding: "6px 10px", background: "rgba(255,255,255,.02)", borderRadius: 4, borderLeft: "3px solid rgba(28,184,224,.3)", marginBottom: 12, fontStyle: "italic" }}>
+            {call.notes}
+          </div>
+        )}
+
+        {/* Updates */}
+        {updates.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: fieldColor, letterSpacing: ".5px", marginBottom: 5 }}>UPDATES</div>
+            {updates.map((u, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, padding: "4px 10px", borderRadius: 4, background: "rgba(255,255,255,.02)", borderLeft: `3px solid ${u.color || "#3b82f6"}30`, marginBottom: 3 }}>
+                <span style={{ fontSize: 11 }}>{u.icon}</span>
+                <span style={{ fontSize: 12.5, color: "#b5b9c9", flex: 1 }}>{u.text}</span>
+                <span style={{ fontSize: 11, color: dim }}>{u.time}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: `1px solid ${borderC}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 14, height: 14, borderRadius: 3, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 900, fontFamily: "Georgia, serif", color: "#1cb8e0" }}>B</span>
+            </div>
+            <span style={{ fontSize: 11, color: dim }}>Brypto</span>
+          </div>
+          {maxRR && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {(() => {
+                const wR = weightedRealizedR(effectiveEntry || call.entry, call.sl, call.targets);
+                if (wR && call.targets.some(t => t.trim)) {
+                  return <span style={{ fontSize: 12, color: fieldColor }}>Weighted: <span style={{ fontWeight: 700, color: parseFloat(wR) >= 2 ? "#00dfa3" : "#f0b030" }}>{wR}R</span></span>;
+                }
+                return null;
+              })()}
+              <span style={{ fontSize: 13, fontWeight: 700, color: parseFloat(maxRR) >= 3 ? "#00dfa3" : "#f0b030" }}>
+                <span style={{ fontSize: 10, color: dim, fontWeight: 500, marginRight: 3 }}>Max</span>{maxRR}R
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Clipboard text ──
 function generateClipboardText(call, fields) {
   const isLong = call.direction === "LONG";
@@ -802,10 +1045,10 @@ export default function BryptoCallEngine() {
   const [newWH, setNewWH] = useState({ name: "", url: "", skin: "basic" });
 
   const embedRef = useRef(null);
+  const captureRef = useRef(null);
 
   // Dynamically load html2canvas and capture the premium embed as a blob
   const captureEmbedAsBlob = useCallback(async () => {
-    // Dynamically import html2canvas
     if (!window.html2canvas) {
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
@@ -815,16 +1058,32 @@ export default function BryptoCallEngine() {
         document.head.appendChild(script);
       });
     }
-    const node = embedRef.current;
+
+    // Use the hidden capture container which renders the embed at full size
+    const node = captureRef.current;
     if (!node) return null;
 
+    // Make it visible for capture (off-screen)
+    node.style.position = "fixed";
+    node.style.left = "-9999px";
+    node.style.top = "0";
+    node.style.width = "520px";
+    node.style.display = "block";
+    node.style.zIndex = "-1";
+
+    // Wait a frame for images to load
+    await new Promise(r => setTimeout(r, 300));
+
     const canvas = await window.html2canvas(node, {
-      backgroundColor: "#313338",
+      backgroundColor: "#2b2d31",
       scale: 2,
       useCORS: true,
       allowTaint: true,
       logging: false,
+      width: 520,
     });
+
+    node.style.display = "none";
 
     return new Promise(resolve => canvas.toBlob(resolve, "image/png"));
   }, []);
@@ -1884,6 +2143,11 @@ $update BRY-2026-0001 sl 94500`}</pre>
           </div>
         )}
       </main>
+
+      {/* Hidden off-screen render target for html2canvas capture */}
+      <div ref={captureRef} style={{ display: "none", fontFamily: "'gg sans', 'Noto Sans', Helvetica, Arial, sans-serif" }}>
+        <CaptureEmbed call={call} fields={fields} />
+      </div>
     </div>
   );
 }
